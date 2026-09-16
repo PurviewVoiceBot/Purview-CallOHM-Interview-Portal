@@ -6,7 +6,7 @@ import {
   Clock, Wifi, XCircle, ChevronRight, Loader2,
   Bot, Volume2, CheckCircle2, VideoOff,
 } from 'lucide-react'
-import { getAgentSignedUrl, reportTermination } from '../apis/apiService'
+import { getAgentSignedUrl, reportTermination, uploadRecording, uploadRecordingWithProgress } from '../apis/apiService'
 
 const MAX_VIOLATIONS = 3
 
@@ -21,10 +21,10 @@ const PREVIEW_DYNAMIC_VARIABLE_KEYS = [
 
 const buildPreviewDynamicVariables = (sessionData) => {
   const actualValues = {
-    candidate_name:   sessionData?.candidateName  || 'a',
-    candidate_id:     sessionData?.candidateId    || 'a',
-    application_id:   sessionData?.applicationId  || 'a',
-    job_id:           sessionData?.jobId          || 'a',
+    candidate_name: sessionData?.candidateName || 'a',
+    candidate_id: sessionData?.candidateId || 'a',
+    application_id: sessionData?.applicationId || 'a',
+    job_id: sessionData?.jobId || 'a',
   }
   return PREVIEW_DYNAMIC_VARIABLE_KEYS.reduce((acc, key) => {
     acc[key] = actualValues[key] || 'a'
@@ -42,10 +42,10 @@ function AgentVisual({ isSpeaking, isConnecting, isMain }) {
       {/* Ambient glow */}
       <div className={`absolute inset-0 transition-opacity duration-700 pointer-events-none
                        ${isSpeaking ? 'opacity-100' : 'opacity-30'}`}
-           style={{ background: 'radial-gradient(circle at 50% 45%, rgba(59,130,246,0.25), transparent 65%)' }} />
+        style={{ background: 'radial-gradient(circle at 50% 45%, rgba(59,130,246,0.25), transparent 65%)' }} />
 
       {isMain ? (
-        /* Main view — large orb */
+        /* Main view - large orb */
         <div className="flex flex-col items-center gap-4 relative z-10">
           {/* Outer pulse ring */}
           <div className="relative">
@@ -53,14 +53,14 @@ function AgentVisual({ isSpeaking, isConnecting, isMain }) {
               <>
                 <div className="absolute inset-0 rounded-full bg-blue-500/20 animate-ping scale-125" />
                 <div className="absolute inset-0 rounded-full bg-blue-400/10 animate-ping scale-150"
-                     style={{ animationDelay: '0.2s' }} />
+                  style={{ animationDelay: '0.2s' }} />
               </>
             )}
             <div className={`relative w-36 h-36 sm:w-44 sm:h-44 rounded-full border-2
                              flex items-center justify-center transition-all duration-500
                              ${isSpeaking
-                               ? 'border-blue-400/60 bg-blue-500/15 shadow-[0_0_60px_rgba(59,130,246,0.35)]'
-                               : 'border-white/15 bg-white/[0.06]'}`}>
+                ? 'border-blue-400/60 bg-blue-500/15 shadow-[0_0_60px_rgba(59,130,246,0.35)]'
+                : 'border-white/15 bg-white/[0.06]'}`}>
               {isConnecting ? (
                 <Loader2 size={40} className="text-blue-300 animate-spin" />
               ) : (
@@ -76,8 +76,8 @@ function AgentVisual({ isSpeaking, isConnecting, isMain }) {
             <div className="flex items-center justify-center gap-1.5 mt-1">
               <span className={`w-2 h-2 rounded-full transition-colors duration-300
                                ${isConnecting ? 'bg-yellow-400 animate-pulse'
-                                 : isSpeaking  ? 'bg-blue-400 animate-pulse'
-                                 : 'bg-emerald-400 animate-pulse'}`} />
+                  : isSpeaking ? 'bg-blue-400 animate-pulse'
+                    : 'bg-emerald-400 animate-pulse'}`} />
               <span className="text-xs text-white/55 font-medium uppercase tracking-widest">
                 {isConnecting ? 'Connecting' : isSpeaking ? 'Speaking' : 'Listening'}
               </span>
@@ -85,7 +85,7 @@ function AgentVisual({ isSpeaking, isConnecting, isMain }) {
           </div>
         </div>
       ) : (
-        /* PiP view — compact */
+        /* PiP view - compact */
         <div className="flex flex-col items-center justify-center gap-1.5 w-full h-full">
           <div className={`w-12 h-12 rounded-full border flex items-center justify-center
                            transition-all duration-300
@@ -93,8 +93,8 @@ function AgentVisual({ isSpeaking, isConnecting, isMain }) {
             {isConnecting
               ? <Loader2 size={18} className="text-blue-300 animate-spin" />
               : isSpeaking
-              ? <Volume2 size={18} className="text-blue-300" />
-              : <Bot size={18} className="text-white/70" />}
+                ? <Volume2 size={18} className="text-blue-300" />
+                : <Bot size={18} className="text-white/70" />}
           </div>
           <span className="text-[10px] font-semibold text-white/60 uppercase tracking-wide">
             Aliya
@@ -110,7 +110,7 @@ function CandidateView({ videoRef, cameraError, candidateName, isMain }) {
   const initial = candidateName?.[0]?.toUpperCase() || 'C'
   return (
     <div className="w-full h-full relative bg-slate-900 overflow-hidden">
-      {/* Camera feed — always rendered so stream stays active */}
+      {/* Camera feed - always rendered so stream stays active */}
       <video
         ref={videoRef}
         autoPlay
@@ -125,16 +125,16 @@ function CandidateView({ videoRef, cameraError, candidateName, isMain }) {
                         bg-gradient-to-b from-slate-800 to-slate-900 gap-3">
           {isMain
             ? <>
-                <div className="w-24 h-24 rounded-full bg-slate-700 border-2 border-slate-600
+              <div className="w-24 h-24 rounded-full bg-slate-700 border-2 border-slate-600
                                 flex items-center justify-center">
-                  <span className="text-4xl font-extrabold text-white/60">{initial}</span>
-                </div>
-                <p className="text-white/40 text-sm font-medium">{candidateName}</p>
-                <div className="flex items-center gap-1.5 mt-1">
-                  <VideoOff size={12} className="text-white/30" />
-                  <span className="text-white/30 text-xs">Camera unavailable</span>
-                </div>
-              </>
+                <span className="text-4xl font-extrabold text-white/60">{initial}</span>
+              </div>
+              <p className="text-white/40 text-sm font-medium">{candidateName}</p>
+              <div className="flex items-center gap-1.5 mt-1">
+                <VideoOff size={12} className="text-white/30" />
+                <span className="text-white/30 text-xs">Camera unavailable</span>
+              </div>
+            </>
             : <span className="text-2xl font-extrabold text-white/50">{initial}</span>
           }
         </div>
@@ -156,45 +156,108 @@ function CandidateView({ videoRef, cameraError, candidateName, isMain }) {
 export default function Assessment({ sessionData }) {
   const navigate = useNavigate()
 
-  const [elapsed, setElapsed]             = useState(0)
-  const [isFullscreen, setIsFullscreen]   = useState(false)
-  const [violations, setViolations]       = useState(0)
+  const [elapsed, setElapsed] = useState(0)
+  const [isFullscreen, setIsFullscreen] = useState(
+    () => !!(document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement)
+  )
+  const [violations, setViolations] = useState(0)
   const [showExitModal, setShowExitModal] = useState(false)
   const [showViolation, setShowViolation] = useState(null)
-  const [terminated, setTerminated]       = useState(false)
-  const [sessionEnded, setSessionEnded]   = useState(false)
-  const [agentLoaded, setAgentLoaded]     = useState(false)
-  const [previewError, setPreviewError]   = useState('')
-  const [cameraError, setCameraError]     = useState(false)
-  const [devToolsOpen, setDevToolsOpen]         = useState(false)
-  const [extraScreenDetected, setExtraScreen]   = useState(false)
+  const [terminated, setTerminated] = useState(false)
+  const [sessionEnded, setSessionEnded] = useState(false)
+  const [agentLoaded, setAgentLoaded] = useState(false)
+  const [previewError, setPreviewError] = useState('')
+  const [cameraError, setCameraError] = useState(false)
+  const [devToolsOpen, setDevToolsOpen] = useState(false)
+  const [extraScreenDetected, setExtraScreen] = useState(false)
   const [monitoringActive, setMonitoringActive] = useState(false)
+  const [isUploading, setIsUploading] = useState(false)
+  const [uploadProgress, setUploadProgress] = useState(0)
+  const [uploadError, setUploadError] = useState('')
 
-  const containerRef        = useRef(null)
-  const toastTimerRef       = useRef(null)
-  const hasInitializedRef   = useRef(false)
+  const containerRef = useRef(null)
+  const toastTimerRef = useRef(null)
+  const hasInitializedRef = useRef(false)
   const isStartingSessionRef = useRef(false)
-  const intentionalStopRef  = useRef(false)
-  const voiceConvRef        = useRef(null)
+  const intentionalStopRef = useRef(false)
+  const voiceConvRef = useRef(null)
   const hasConnectedOnceRef = useRef(false)
-  const videoPipRef             = useRef(null)
-  const streamRef               = useRef(null)
-  const lastViolationTimeRef    = useRef(0)
+  const videoPipRef = useRef(null)
+  const streamRef = useRef(null)
+  const lastViolationTimeRef = useRef(0)
+  const mediaRecorderRef = useRef(null)
+  const recordingChunksRef = useRef([])
+  const uploadedRef = useRef(false)
 
-  // ── Camera ─────────────────────────────────────────────────────────────────
+  // ── Camera + recording setup ───────────────────────────────────────────────
   useEffect(() => {
     const startCamera = async () => {
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false })
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true })
         streamRef.current = stream
         if (videoPipRef.current) videoPipRef.current.srcObject = stream
+        startRecording(stream)
       } catch {
         setCameraError(true)
+        try {
+          const videoOnly = await navigator.mediaDevices.getUserMedia({ video: true, audio: false })
+          streamRef.current = videoOnly
+          if (videoPipRef.current) videoPipRef.current.srcObject = videoOnly
+          startRecording(videoOnly)
+        } catch { setCameraError(true) }
       }
     }
     startCamera()
-    return () => streamRef.current?.getTracks().forEach(t => t.stop())
+    return () => {
+      streamRef.current?.getTracks().forEach(t => t.stop())
+    }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Recording helpers ───────────────────────────────────────────────────────
+  const startRecording = useCallback((stream) => {
+    if (!stream || !window.MediaRecorder || mediaRecorderRef.current) return
+    const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9,opus')
+      ? 'video/webm;codecs=vp9,opus'
+      : MediaRecorder.isTypeSupported('video/webm;codecs=vp8,opus')
+        ? 'video/webm;codecs=vp8,opus'
+        : 'video/webm'
+    try {
+      const recorder = new MediaRecorder(stream, {
+        mimeType,
+        videoBitsPerSecond: 500000,  // 500 kbps - ~56MB for 15 min
+        audioBitsPerSecond: 64000,   // 64 kbps - high quality speech
+      })
+      mediaRecorderRef.current = recorder
+      recordingChunksRef.current = []
+      recorder.ondataavailable = (e) => {
+        if (e.data && e.data.size > 0) recordingChunksRef.current.push(e.data)
+      }
+      recorder.start(5000) // 5-second chunks - less overhead, final chunk at most 5s old
+    } catch { /* recording unavailable - interview continues */ }
   }, [])
+
+  const stopAndUpload = useCallback(async () => {
+    if (uploadedRef.current) return
+    uploadedRef.current = true
+    const recorder = mediaRecorderRef.current
+    if (!recorder) return
+    setIsUploading(true)
+    try {
+      await new Promise((resolve) => {
+        if (recorder.state === 'inactive') { resolve(); return }
+        recorder.onstop = resolve
+        if (recorder.state === 'recording') recorder.requestData() // flush current chunk
+        recorder.stop()
+      })
+      const chunks = recordingChunksRef.current
+      if (chunks.length > 0) {
+        const blob = new Blob(chunks, { type: recorder.mimeType || 'video/webm' })
+        await uploadRecording(sessionData?.applicationId, blob)
+      }
+    } catch { /* best effort */ } finally {
+      setIsUploading(false)
+    }
+  }, [sessionData?.applicationId])
 
   // ── ElevenLabs voice conversation ──────────────────────────────────────────
   const voiceConv = useConversation({
@@ -210,7 +273,7 @@ export default function Assessment({ sessionData }) {
       intentionalStopRef.current = false
       if (!wasIntentional && hasConnectedOnceRef.current) setSessionEnded(true)
     },
-    onMessage: () => {},
+    onMessage: () => { },
     onError: (error) => {
       isStartingSessionRef.current = false
       hasInitializedRef.current = false
@@ -225,8 +288,8 @@ export default function Assessment({ sessionData }) {
   useEffect(() => { voiceConvRef.current = voiceConv }, [voiceConv])
 
   const formatTime = (s) => {
-    const h   = String(Math.floor(s / 3600)).padStart(2, '0')
-    const m   = String(Math.floor((s % 3600) / 60)).padStart(2, '0')
+    const h = String(Math.floor(s / 3600)).padStart(2, '0')
+    const m = String(Math.floor((s % 3600) / 60)).padStart(2, '0')
     const sec = String(s % 60).padStart(2, '0')
     return `${h}:${m}:${sec}`
   }
@@ -253,8 +316,8 @@ export default function Assessment({ sessionData }) {
       hasInitializedRef.current = true; return
     }
     isStartingSessionRef.current = true
-    intentionalStopRef.current   = false
-    hasInitializedRef.current    = true
+    intentionalStopRef.current = false
+    hasInitializedRef.current = true
     try {
       setPreviewError('')
       setAgentLoaded(false)
@@ -275,8 +338,8 @@ export default function Assessment({ sessionData }) {
   const stopPreviewSession = useCallback(async () => {
     const conv = voiceConvRef.current
     if (!conv) return
-    intentionalStopRef.current   = true
-    hasInitializedRef.current    = false
+    intentionalStopRef.current = true
+    hasInitializedRef.current = false
     isStartingSessionRef.current = false
     try {
       if (conv.status === 'connected' || conv.status === 'connecting') await conv.endSession()
@@ -291,19 +354,38 @@ export default function Assessment({ sessionData }) {
   }, [sessionEnded, terminated])
 
   useEffect(() => {
-    const h = (e) => { e.preventDefault(); e.returnValue = 'Interview in progress.'; return e.returnValue }
+    const h = (e) => {
+      e.preventDefault()
+      e.returnValue = 'Interview in progress.'
+      // Best-effort upload of whatever chunks we have at the time of unload
+      if (!uploadedRef.current && recordingChunksRef.current.length > 0) {
+        uploadedRef.current = true
+        const recorder = mediaRecorderRef.current
+        if (recorder && recorder.state !== 'inactive') recorder.requestData()
+        const blob = new Blob(recordingChunksRef.current, {
+          type: recorder?.mimeType || 'video/webm',
+        })
+        fetch(`${import.meta.env.VITE_BACKEND_URL || ''}/recruitment/recordings/${sessionData?.applicationId}`, {
+          method: 'POST',
+          headers: { 'accept': 'application/json', 'xi-api-key': import.meta.env.VITE_XI_API_KEY || '', 'ngrok-skip-browser-warning': 'true' },
+          body: (() => { const f = new FormData(); f.append('file', blob, `${sessionData?.applicationId}_recording.webm`); return f })(),
+          keepalive: true,
+        }).catch(() => { })
+      }
+      return e.returnValue
+    }
     window.addEventListener('beforeunload', h)
     return () => window.removeEventListener('beforeunload', h)
-  }, [])
+  }, [sessionData?.applicationId])
 
   useEffect(() => {
-    const h = () => { if (document.hidden && monitoringActive && !terminated && !sessionEnded) raiseViolation('tab_switch', 'You switched away from this tab. Return to this window immediately — leaving this tab is a violation and may close your interview.') }
+    const h = () => { if (document.hidden && monitoringActive && !terminated && !sessionEnded) raiseViolation('tab_switch', 'You switched away from this tab. Return to this window immediately - leaving this tab is a violation and may close your interview.') }
     document.addEventListener('visibilitychange', h)
     return () => document.removeEventListener('visibilitychange', h)
   }, [raiseViolation, monitoringActive, sessionEnded, terminated])
 
   useEffect(() => {
-    const h = () => { if (monitoringActive && !terminated && !sessionEnded) raiseViolation('focus_loss', 'You moved away from this window. Return to the interview immediately — switching to another window or screen is a violation and may close your interview.') }
+    const h = () => { if (monitoringActive && !terminated && !sessionEnded) raiseViolation('focus_loss', 'You moved away from this window. Return to the interview immediately - switching to another window or screen is a violation and may close your interview.') }
     window.addEventListener('blur', h)
     return () => window.removeEventListener('blur', h)
   }, [raiseViolation, monitoringActive, sessionEnded, terminated])
@@ -313,7 +395,7 @@ export default function Assessment({ sessionData }) {
     if (!monitoringActive || terminated || sessionEnded) return
     const id = setInterval(() => {
       if (!document.hasFocus() && !terminated && !sessionEnded) {
-        raiseViolation('focus_loss', 'You moved away from this window. Return to the interview immediately — switching to another window or screen is a violation and may close your interview.')
+        raiseViolation('focus_loss', 'You moved away from this window. Return to the interview immediately - switching to another window or screen is a violation and may close your interview.')
       }
     }, 1000)
     return () => clearInterval(id)
@@ -323,17 +405,44 @@ export default function Assessment({ sessionData }) {
     const h = () => {
       const isFS = !!(document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement)
       setIsFullscreen(isFS)
-      if (!isFS && agentLoaded && !terminated && !sessionEnded) raiseViolation('fullscreen_exit', 'You exited fullscreen mode. Click the fullscreen button to return — continuing outside fullscreen is a violation and may close your interview.')
+      if (!isFS && agentLoaded && !terminated && !sessionEnded) raiseViolation('fullscreen_exit', 'You exited fullscreen mode. Click the fullscreen button to return - continuing outside fullscreen is a violation and may close your interview.')
     }
     document.addEventListener('fullscreenchange', h)
     document.addEventListener('webkitfullscreenchange', h)
     return () => { document.removeEventListener('fullscreenchange', h); document.removeEventListener('webkitfullscreenchange', h) }
   }, [agentLoaded, sessionEnded, terminated, raiseViolation])
 
+  // ── Always enter fullscreen when the technical round opens ──────────────────
+  // Runs regardless of whether fullscreen was granted/kept on the previous page.
+  // Also re-arms on the candidate's first interaction so a blocked auto-request
+  // (no user activation after navigation) still puts the interview fullscreen.
+  useEffect(() => {
+    const enterFullscreen = () => {
+      const isFS = !!(document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement)
+      if (isFS) return
+      const el = containerRef.current || document.documentElement
+      const req = el.requestFullscreen || el.webkitRequestFullscreen || el.mozRequestFullScreen
+      try { req?.call(el)?.catch?.(() => {}) } catch { /* ignore */ }
+    }
+
+    enterFullscreen()
+    const t = setTimeout(enterFullscreen, 400)
+
+    const onFirstInteraction = () => enterFullscreen()
+    window.addEventListener('pointerdown', onFirstInteraction)
+    window.addEventListener('keydown', onFirstInteraction)
+
+    return () => {
+      clearTimeout(t)
+      window.removeEventListener('pointerdown', onFirstInteraction)
+      window.removeEventListener('keydown', onFirstInteraction)
+    }
+  }, [])
+
   useEffect(() => {
     const block = e => e.preventDefault()
     const blockKeys = e => {
-      if (e.key === 'F12' || (e.ctrlKey && e.shiftKey && ['I','J','C'].includes(e.key)) || (e.ctrlKey && e.key === 'u') || (e.ctrlKey && e.key === 'w')) {
+      if (e.key === 'F12' || (e.ctrlKey && e.shiftKey && ['I', 'J', 'C'].includes(e.key)) || (e.ctrlKey && e.key === 'u') || (e.ctrlKey && e.key === 'w')) {
         e.preventDefault()
         raiseViolation('devtools', 'Developer tools usage is not permitted during the interview.')
       }
@@ -350,7 +459,7 @@ export default function Assessment({ sessionData }) {
 
     const check = () => {
       const isOpen =
-        window.outerWidth  - window.innerWidth  > THRESHOLD ||
+        window.outerWidth - window.innerWidth > THRESHOLD ||
         window.outerHeight - window.innerHeight > THRESHOLD
       setDevToolsOpen(isOpen)
       if (isOpen && !devToolsOpenRef.current) {
@@ -368,11 +477,7 @@ export default function Assessment({ sessionData }) {
   }, [raiseViolation, terminated, sessionEnded])
 
   useEffect(() => {
-    // Fullscreen is already enforced on the Instructions page — start session directly.
-    // If fullscreen was somehow lost in transit the reminder strip + violation handles it.
     startPreviewSession()
-    // Activate focus/window-switch monitoring after a short grace period to avoid
-    // false positives from the browser's own focus handoff during page navigation.
     const monitorTimer = setTimeout(() => setMonitoringActive(true), 4000)
     return () => {
       clearTimeout(monitorTimer)
@@ -389,7 +494,7 @@ export default function Assessment({ sessionData }) {
       const isExtended = !!(window.screen?.isExtended)
       setExtraScreen(isExtended)
       if (isExtended && monitoringActive && !terminated && !sessionEnded) {
-        raiseViolation('multi_screen', 'A second screen was detected. Please disconnect it immediately — using multiple screens is a violation and will close your interview.')
+        raiseViolation('multi_screen', 'A second screen was detected. Please disconnect it immediately - using multiple screens is a violation and will close your interview.')
       }
     }
 
@@ -399,7 +504,7 @@ export default function Assessment({ sessionData }) {
       window.screen.addEventListener('change', onScreenChange)
     }
 
-    // Method 2: getScreenDetails — works without gesture if permission was already granted
+    // Method 2: getScreenDetails - works without gesture if permission was already granted
     if (typeof window.getScreenDetails === 'function') {
       window.getScreenDetails().then(details => {
         screenDetailsRef.current = details
@@ -407,12 +512,12 @@ export default function Assessment({ sessionData }) {
           const hasMultiple = details.screens.length > 1
           setExtraScreen(hasMultiple)
           if (hasMultiple && monitoringActive && !terminated && !sessionEnded) {
-            raiseViolation('multi_screen', 'A second screen was detected. Please disconnect it immediately — using multiple screens is a violation and will close your interview.')
+            raiseViolation('multi_screen', 'A second screen was detected. Please disconnect it immediately - using multiple screens is a violation and will close your interview.')
           }
         }
         onScreensChange()
         details.addEventListener('screenschange', onScreensChange)
-      }).catch(() => {})
+      }).catch(() => { })
     }
 
     return () => {
@@ -424,21 +529,87 @@ export default function Assessment({ sessionData }) {
   useEffect(() => {
     if (!terminated) return
     stopPreviewSession()
-    reportTermination(sessionData?.applicationId).catch(() => {})
-  }, [terminated, stopPreviewSession])
-  useEffect(() => { if (sessionEnded) stopPreviewSession() }, [sessionEnded, stopPreviewSession])
+    reportTermination(sessionData?.applicationId).catch(() => { })
+    stopAndUpload()
+  }, [terminated, stopPreviewSession, stopAndUpload])
+  useEffect(() => {
+    if (!sessionEnded) return
+    stopPreviewSession()
+    // Upload in background - SPA keeps in-flight XHR alive through navigation
+    if (!uploadedRef.current && mediaRecorderRef.current) {
+      uploadedRef.current = true
+      const recorder = mediaRecorderRef.current
+      const appId    = sessionData?.applicationId
+      ;(async () => {
+        try {
+          if (recorder.state !== 'inactive') {
+            await new Promise(resolve => {
+              recorder.onstop = resolve
+              if (recorder.state === 'recording') recorder.requestData()
+              recorder.stop()
+            })
+          }
+          const chunks = recordingChunksRef.current
+          if (chunks.length > 0) {
+            const blob = new Blob(chunks, { type: recorder.mimeType || 'video/webm' })
+            await uploadRecording(appId, blob)
+          }
+        } catch { /* best effort */ }
+      })()
+    }
+  }, [sessionEnded]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Helpers ─────────────────────────────────────────────────────────────────
   const toggleFullscreen = () => {
-    if (!isFullscreen) containerRef.current?.requestFullscreen?.().catch(() => {})
-    else               document.exitFullscreen?.().catch(() => {})
+    if (!isFullscreen) containerRef.current?.requestFullscreen?.().catch(() => { })
+    else document.exitFullscreen?.().catch(() => { })
   }
 
   const confirmExit = async () => {
     setShowExitModal(false)
-    await stopPreviewSession()
+    setIsUploading(true)
+    setUploadProgress(0)
+    setUploadError('')
+
+    // Stop voice (fire and forget - don't block on WebSocket close)
+    const conv = voiceConvRef.current
+    if (conv) {
+      intentionalStopRef.current = true
+      hasInitializedRef.current = false
+      isStartingSessionRef.current = false
+      conv.endSession().catch(() => { })
+    }
+
+    // Finalize recorder - flush in-progress chunk then stop
+    if (!uploadedRef.current && mediaRecorderRef.current) {
+      uploadedRef.current = true
+      const recorder = mediaRecorderRef.current
+      const appId = sessionData?.applicationId
+
+      if (recorder.state !== 'inactive') {
+        await new Promise(resolve => {
+          recorder.onstop = resolve
+          if (recorder.state === 'recording') recorder.requestData()
+          recorder.stop()
+        })
+      }
+
+      const chunks = recordingChunksRef.current
+      if (chunks.length > 0) {
+        const blob = new Blob(chunks, { type: recorder.mimeType || 'video/webm' })
+        try {
+          await uploadRecordingWithProgress(appId, blob, setUploadProgress)
+          setUploadProgress(100)
+        } catch (err) {
+          setUploadError(err?.message || 'Upload failed. Please try again.')
+          return  // stay on page so user can retry
+        }
+      }
+    }
+
+    // Upload done (or nothing to upload) - navigate
     sessionStorage.removeItem('interview_session')
-    navigate('/')
+    navigate('/session-complete')
   }
 
   const handleRetryPreview = async () => {
@@ -451,15 +622,13 @@ export default function Assessment({ sessionData }) {
   const handleTerminatedClose = async () => {
     await stopPreviewSession()
     sessionStorage.removeItem('interview_session')
-    navigate('/')
+    navigate('/session-complete')
   }
 
   const violationColor =
     violations === 0 ? 'text-green-400' :
-    violations === 1 ? 'text-yellow-400' :
-    violations === 2 ? 'text-orange-400' : 'text-red-400'
-
-  // Agent (Aliya) is always the main full-screen view; candidate is always PiP
+      violations === 1 ? 'text-yellow-400' :
+        violations === 2 ? 'text-orange-400' : 'text-red-400'
 
   // ── Terminated screen ────────────────────────────────────────────────────────
   if (terminated) {
@@ -484,6 +653,12 @@ export default function Assessment({ sessionData }) {
               {violations} violation{violations !== 1 ? 's' : ''} recorded
             </p>
           </div>
+          {isUploading && (
+            <div className="flex items-center justify-center gap-2 text-slate-400 text-xs mb-4">
+              <Loader2 size={13} className="animate-spin" />
+              Uploading recording…
+            </div>
+          )}
           <p className="text-slate-400 text-xs">
             If you believe this is an error, contact{' '}
             <a href="mailto:support@purviewcallohm.com" className="text-accent hover:underline font-medium">
@@ -495,32 +670,35 @@ export default function Assessment({ sessionData }) {
     )
   }
 
-  // ── Session ended screen ─────────────────────────────────────────────────────
+  // ── Session ended ─────────────────────────────────────────────────────────────
+  // A coding round follows only when the backend flagged `coding_enabled` at
+  // validation. Otherwise this is an interview-only (HR) round → go to completion.
   if (sessionEnded) {
+    const hasCoding = !!sessionData?.codingEnabled
     return (
       <div className="min-h-screen bg-navy-950 flex items-center justify-center p-6">
-        <div className="bg-white rounded-2xl shadow-card-xl max-w-md w-full p-10 text-center animate-fade-up relative">
-          <button onClick={handleTerminatedClose}
-            className="absolute top-4 right-4 w-8 h-8 rounded-lg bg-slate-100 hover:bg-slate-200
-                       flex items-center justify-center text-slate-500 hover:text-slate-700 transition-colors">
-            <XCircle size={18} />
-          </button>
-          <div className="w-16 h-16 rounded-2xl bg-green-100 flex items-center justify-center mx-auto mb-5">
-            <CheckCircle2 size={28} className="text-green-600" />
-          </div>
-          <h2 className="text-xl font-extrabold text-slate-900 mb-2">Interview Completed</h2>
-          <p className="text-slate-500 text-sm leading-relaxed mb-6">
-            Your AI interview session has ended successfully. Your responses have been captured and shared with the hiring team.
+        <div className="bg-white rounded-2xl shadow-card-xl max-w-md w-full p-10 text-center animate-fade-up">
+          <div className="text-5xl mb-6 select-none">{hasCoding ? '💻' : '✅'}</div>
+          <h2 className="text-xl font-extrabold text-slate-900 mb-3">
+            {hasCoding ? 'Please continue with the Coding Round' : 'Interview Complete'}
+          </h2>
+          <p className="text-slate-500 text-sm leading-relaxed mb-8">
+            {hasCoding
+              ? "You have 30 minutes to complete the coding questions. Click below when you're ready to begin."
+              : 'Thank you for completing your interview. Your responses have been recorded and shared with the hiring team.'}
           </p>
-          <div className="bg-green-50 border border-green-200 rounded-xl p-4 mb-6">
-            <p className="text-green-700 text-xs font-semibold">Session duration: {formatTime(elapsed)}</p>
-          </div>
-          <p className="text-slate-400 text-xs mb-6">
-            You can close this window. The recruiter will contact you if anything else is needed.
-          </p>
-          <button onClick={handleTerminatedClose}
-            className="w-full py-3 rounded-xl bg-navy-800 hover:bg-navy-700 font-semibold text-sm text-white transition-all">
-            Close Session
+          <button
+            onClick={() => {
+              if (hasCoding) {
+                navigate('/coding-round')
+              } else {
+                sessionStorage.removeItem('interview_session')
+                navigate('/session-complete')
+              }
+            }}
+            className="w-full py-3 rounded-xl bg-navy-800 hover:bg-navy-700 font-semibold text-sm text-white
+                       transition-all flex items-center justify-center gap-2">
+            {hasCoding ? 'Start Coding Round' : 'Finish'} <ChevronRight size={16} />
           </button>
         </div>
       </div>
@@ -530,7 +708,7 @@ export default function Assessment({ sessionData }) {
   // ── Assessment UI ────────────────────────────────────────────────────────────
   return (
     <div ref={containerRef} className="flex flex-col bg-black text-white"
-         style={{ height: '100vh', overflow: 'hidden' }}>
+      style={{ height: '100vh', overflow: 'hidden' }}>
 
       {/* ── Extra Screen Blocking Overlay ─────────────────────────────────────── */}
       {extraScreenDetected && !terminated && !sessionEnded && (
@@ -558,7 +736,9 @@ export default function Assessment({ sessionData }) {
                          px-5 py-2.5 bg-black/80 backdrop-blur-sm border-b border-white/10 z-30">
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
-            <img src="/callohm-logo.png" alt="Callohm" className="h-7 w-auto object-contain" />
+            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#052e1b] p-1 ring-1 ring-white/15">
+              <img src="/website_logos/rabbit_logo_without_bg.png" alt="Callohm" className="h-full w-full object-contain" />
+            </span>
           </div>
           <div className="h-4 w-px bg-white/15 hidden sm:block" />
           <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-red-500/15 border border-red-400/25">
@@ -606,28 +786,20 @@ export default function Assessment({ sessionData }) {
           </div>
         )}
 
-        {/* ── MAIN VIEW — Aliya (always full-screen) ────────────────────── */}
+        {/* ── Aliya fullscreen with candidate PiP ───────────────────── */}
         <div className="absolute inset-0 z-10">
           <AgentVisual isSpeaking={isSpeaking} isConnecting={isConnecting} isMain={true} />
-          <div className="absolute bottom-24 left-5 z-10">
-            <span className="text-xs font-semibold text-white bg-black/50 backdrop-blur-sm
-                             px-2.5 py-1 rounded-lg">
-              Aliya
-            </span>
-          </div>
-        </div>
 
-        {/* ── PiP WINDOW — candidate camera (always bottom-right) ───────── */}
-        <div className="absolute bottom-20 right-5 z-30
-                        w-44 h-28 sm:w-52 sm:h-32
-                        rounded-2xl overflow-hidden
-                        border-2 border-white/25 shadow-[0_8px_32px_rgba(0,0,0,0.6)]">
-          <CandidateView
-            videoRef={videoPipRef}
-            cameraError={cameraError}
-            candidateName={sessionData.candidateName}
-            isMain={false}
-          />
+          {/* Candidate PiP overlay - bottom right */}
+          <div className="absolute bottom-6 right-6 w-48 h-36 rounded-2xl overflow-hidden
+                          border-2 border-white/20 shadow-2xl z-20 bg-slate-900">
+            <CandidateView
+              videoRef={videoPipRef}
+              cameraError={cameraError}
+              candidateName={sessionData.candidateName}
+              isMain={false}
+            />
+          </div>
         </div>
 
         {/* ── Error overlay ──────────────────────────────────────────────── */}
@@ -676,7 +848,7 @@ export default function Assessment({ sessionData }) {
               <p className="text-sm font-semibold text-slate-800">Violation Detected</p>
               <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">{showViolation.msg}</p>
               <p className="text-xs font-semibold text-orange-600 mt-1.5">
-                {violations}/{MAX_VIOLATIONS} warnings — session ends at {MAX_VIOLATIONS}
+                {violations}/{MAX_VIOLATIONS} warnings - session ends at {MAX_VIOLATIONS}
               </p>
             </div>
           </div>
@@ -712,6 +884,59 @@ export default function Assessment({ sessionData }) {
         </div>
       )}
 
+      {/* ── Upload Progress Overlay ───────────────────────────────────────────── */}
+      {isUploading && (
+        <div className="fixed inset-0 bg-black/95 backdrop-blur-sm z-[9999]
+                        flex flex-col items-center justify-center gap-6 p-8">
+          <div className="text-5xl select-none">📤</div>
+
+          <div className="text-center max-w-sm">
+            <h2 className="text-white text-xl font-extrabold mb-2 tracking-tight">
+              {uploadError ? 'Upload Failed' : uploadProgress === 100 ? 'Upload Complete!' : 'Saving Your Recording'}
+            </h2>
+            <p className="text-white/55 text-sm leading-relaxed">
+              {uploadError
+                ? uploadError
+                : uploadProgress === 100
+                  ? 'All done - taking you to the completion page…'
+                  : 'Please keep this window open. Your interview is being saved to our servers.'}
+            </p>
+          </div>
+
+          {!uploadError && (
+            <div className="w-full max-w-sm space-y-2">
+              <div className="flex justify-between text-xs text-white/50 font-medium">
+                <span>Uploading interview recording…</span>
+                <span>{uploadProgress}%</span>
+              </div>
+              <div className="h-2.5 w-full rounded-full bg-white/10 overflow-hidden">
+                <div
+                  className="h-full rounded-full bg-blue-500 transition-all duration-300"
+                  style={{ width: `${uploadProgress}%` }}
+                />
+              </div>
+            </div>
+          )}
+
+          {uploadError && (
+            <div className="flex gap-3">
+              <button
+                onClick={() => { setUploadError(''); setIsUploading(false) }}
+                className="px-5 py-2.5 rounded-xl border border-white/20 text-white/70
+                           text-sm font-semibold hover:bg-white/10 transition-colors">
+                Cancel
+              </button>
+              <button
+                onClick={() => { setUploadError(''); confirmExit() }}
+                className="px-5 py-2.5 rounded-xl bg-blue-500 hover:bg-blue-600
+                           text-white text-sm font-semibold transition-colors">
+                Retry Upload
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* ── Exit Confirmation Modal ───────────────────────────────────────────── */}
       {showExitModal && (
         <div className="fixed inset-0 bg-black/75 backdrop-blur-sm z-50
@@ -742,10 +967,13 @@ export default function Assessment({ sessionData }) {
                            text-sm text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition-all">
                 Continue Interview
               </button>
-              <button onClick={confirmExit}
+              <button onClick={confirmExit} disabled={isUploading}
                 className="flex-1 py-3 rounded-xl bg-red-500 hover:bg-red-600 font-semibold
-                           text-sm text-white transition-all hover:shadow-[0_4px_14px_-4px_rgba(239,68,68,0.5)]">
-                Yes, End Session
+                           text-sm text-white transition-all hover:shadow-[0_4px_14px_-4px_rgba(239,68,68,0.5)]
+                           disabled:opacity-60 disabled:cursor-wait flex items-center justify-center gap-2">
+                {isUploading
+                  ? <><Loader2 size={14} className="animate-spin" /> Saving…</>
+                  : 'Yes, End Session'}
               </button>
             </div>
           </div>
