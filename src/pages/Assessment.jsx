@@ -6,9 +6,16 @@ import {
   Clock, Wifi, XCircle, ChevronRight, Loader2,
   Bot, Volume2, CheckCircle2, VideoOff,
 } from 'lucide-react'
-import { getAgentSignedUrl, reportTermination, uploadRecording, uploadRecordingWithProgress } from '../apis/apiService'
+// import { getAgentSignedUrl, reportTermination, uploadRecording, uploadRecordingWithProgress } from '../apis/apiService'
+import {
+  getAgentSignedUrl,
+  reportTermination,
+  uploadRecording,
+  uploadRecordingWithProgress,
+  trackViolation,
+} from '../apis/apiService'
 
-const MAX_VIOLATIONS = 3
+// const MAX_VIOLATIONS = 3
 
 const PREVIEW_DYNAMIC_VARIABLE_KEYS = [
   'job_required_primary_skills', 'job_title', 'candidate_name',
@@ -184,7 +191,9 @@ export default function Assessment({ sessionData }) {
   const hasConnectedOnceRef = useRef(false)
   const videoPipRef = useRef(null)
   const streamRef = useRef(null)
-  const lastViolationTimeRef = useRef(0)
+  // const lastViolationTimeRef = useRef(0)
+  const lastViolationByTypeRef = useRef({})
+  const awayRef = useRef(false)
   const mediaRecorderRef = useRef(null)
   const recordingChunksRef = useRef([])
   const uploadedRef = useRef(false)
@@ -295,18 +304,46 @@ export default function Assessment({ sessionData }) {
   }
 
   const raiseViolation = useCallback((type, msg) => {
-    const now = Date.now()
-    if (now - lastViolationTimeRef.current < 1000) return
-    lastViolationTimeRef.current = now
-    setViolations(prev => {
-      const next = prev + 1
-      if (next >= MAX_VIOLATIONS) setTerminated(true)
-      return next
-    })
-    if (toastTimerRef.current) clearTimeout(toastTimerRef.current)
-    setShowViolation({ type, msg })
-    toastTimerRef.current = setTimeout(() => setShowViolation(null), 5000)
-  }, [])
+  const now = Date.now()
+  // if (now - lastViolationTimeRef.current < 1000) return
+  // lastViolationTimeRef.current = now
+  if (now - (lastViolationByTypeRef.current[type] || 0) < 1000) return
+  lastViolationByTypeRef.current[type] = now
+
+  // Send violation to backend
+  trackViolation(
+    sessionData?.applicationId,
+    'technical',
+    type
+  ).catch((err) => {
+    // Best effort - don't stop the interview if API fails, but don't hide
+    // the failure either. Silently swallowing this was why violations could
+    // show up locally (and even terminate the session) without ever
+    // reaching the dashboard's Total Violations count.
+    console.error('Failed to record violation on server:', err)
+  })
+
+  // setViolations(prev => {
+  //   const next = prev + 1
+  //   if (next >= MAX_VIOLATIONS) setTerminated(true)
+  //   return next
+  // })
+  setViolations(prev => prev + 1)
+
+  if (toastTimerRef.current) clearTimeout(toastTimerRef.current)
+
+  setShowViolation({ type, msg })
+
+  toastTimerRef.current = setTimeout(
+    () => setShowViolation(null),
+    5000
+  )
+
+  // `sessionData?.applicationId` must be a dependency - without it this
+  // callback keeps the applicationId from whichever render first created
+  // it (possibly undefined/stale), so every violation after that would
+  // silently POST to the wrong (or no) application and never show up here.
+}, [sessionData?.applicationId])
 
   const startPreviewSession = useCallback(async ({ force = false } = {}) => {
     const conv = voiceConvRef.current
@@ -391,14 +428,37 @@ export default function Assessment({ sessionData }) {
   }, [raiseViolation, monitoringActive, sessionEnded, terminated])
 
   // Poll document.hasFocus() to catch multi-monitor window switches that don't always fire blur
+  // useEffect(() => {
+  //   if (!monitoringActive || terminated || sessionEnded) return
+  //   const id = setInterval(() => {
+  //     if (!document.hasFocus() && !terminated && !sessionEnded) {
+  //       raiseViolation('focus_loss', 'You moved away from this window. Return to the interview immediately - switching to another window or screen is a violation and may close your interview.')
+  //     }
+  //   }, 1000)
+  //   return () => clearInterval(id)
+  // }, [raiseViolation, monitoringActive, terminated, sessionEnded])
+    // One 'tab_switch' violation per absence (tab switch, alt-tab, other monitor)
   useEffect(() => {
-    if (!monitoringActive || terminated || sessionEnded) return
-    const id = setInterval(() => {
-      if (!document.hasFocus() && !terminated && !sessionEnded) {
-        raiseViolation('focus_loss', 'You moved away from this window. Return to the interview immediately - switching to another window or screen is a violation and may close your interview.')
-      }
-    }, 1000)
-    return () => clearInterval(id)
+    const away = () => {
+      if (!monitoringActive || terminated || sessionEnded || awayRef.current) return
+      awayRef.current = true
+      raiseViolation('tab_switch', 'You left the interview window. Return immediately - leaving this window or tab is a violation.')
+    }
+    const back = () => { awayRef.current = false }
+
+    const onVisibility = () => (document.hidden ? away() : back())
+    document.addEventListener('visibilitychange', onVisibility)
+    window.addEventListener('blur', away)
+    window.addEventListener('focus', back)
+    // Catches multi-monitor switches that don't always fire blur
+    const id = setInterval(() => (document.hasFocus() ? back() : away()), 1000)
+
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibility)
+      window.removeEventListener('blur', away)
+      window.removeEventListener('focus', back)
+      clearInterval(id)
+    }
   }, [raiseViolation, monitoringActive, terminated, sessionEnded])
 
   useEffect(() => {
@@ -753,7 +813,8 @@ export default function Assessment({ sessionData }) {
           <span className="flex items-center gap-1.5"><Wifi size={12} />{sessionData.applicationId}</span>
           <span className="flex items-center gap-1.5"><Clock size={12} />{formatTime(elapsed)}</span>
           <span className={`flex items-center gap-1 font-semibold ${violationColor}`}>
-            <ShieldX size={12} />{violations}/{MAX_VIOLATIONS} violations
+            {/* <ShieldX size={12} />{violations}/{MAX_VIOLATIONS} violations */}
+            <ShieldX size={12} />{violations} violation{violations !== 1 ? 's' : ''}
           </span>
         </div>
 
@@ -848,7 +909,8 @@ export default function Assessment({ sessionData }) {
               <p className="text-sm font-semibold text-slate-800">Violation Detected</p>
               <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">{showViolation.msg}</p>
               <p className="text-xs font-semibold text-orange-600 mt-1.5">
-                {violations}/{MAX_VIOLATIONS} warnings - session ends at {MAX_VIOLATIONS}
+                {violations} violation{violations !== 1 ? 's' : ''} recorded
+                {/* {violations}/{MAX_VIOLATIONS} warnings - session ends at {MAX_VIOLATIONS} */}
               </p>
             </div>
           </div>
