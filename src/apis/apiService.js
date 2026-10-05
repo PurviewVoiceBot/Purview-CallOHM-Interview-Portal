@@ -41,12 +41,17 @@ export async function getApplicationStatus(jobId, applicationId) {
  * @param {string} applicationId
  * @returns {{ detail: string } | object}
  */
-export async function validateApplication(applicationId) {
-  return request(`${BACKEND_URL}/recruitment/agents/technical/validate/${applicationId}`, {
-    method: 'POST',
-  })
+// export async function validateApplication(applicationId) {
+//   return request(`${BACKEND_URL}/recruitment/agents/technical/validate/${applicationId}`, {
+//     method: 'POST',
+//   })
+// }
+export async function validateApplication(applicationId, statusChange = true) {
+  return request(
+    `${BACKEND_URL}/recruitment/agents/technical/validate/${encodeURIComponent(applicationId)}?status_change=${statusChange}`,
+    { method: 'POST' }
+  )
 }
-
 /**
  * Uploads the candidate's identity images (govt ID + live photo).
  * POST /recruitment/identity/{applicationId}   (multipart/form-data)

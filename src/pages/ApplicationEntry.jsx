@@ -374,14 +374,36 @@ export default function ApplicationEntry({ onValidated }) {
   const idDone = Boolean(idProofType && idProofCapture)
   const photoDone = Boolean(candidatePhoto)
 
-  // Step 1 — just capture the Application ID (no API call) and move on.
-  const handleCaptureAppId = (e) => {
+  // // Step 1 — just capture the Application ID (no API call) and move on.
+  // const handleCaptureAppId = (e) => {
+  //   e.preventDefault()
+  //   const trimmed = appId.trim()
+  //   if (!trimmed) { setError('Please enter your Application ID.'); return }
+  //   setError('')
+  //   setAppIdCaptured(true)
+  //   setActiveStep(2)
+  // }
+    // Step 1 — verify the Application ID exists (status_change=false, no side effects).
+  const handleCaptureAppId = async (e) => {
     e.preventDefault()
-    const trimmed = appId.trim()
-    if (!trimmed) { setError('Please enter your Application ID.'); return }
+    const cleaned = appId.trim().replace(/\/+$/, '') // strips the trailing "/" from your screenshot
+    if (!cleaned) { setError('Please enter your Application ID.'); return }
     setError('')
-    setAppIdCaptured(true)
-    setActiveStep(2)
+    setLoading(true)
+    try {
+      await validateApplication(cleaned, false)
+      setAppId(cleaned)
+      setAppIdCaptured(true)
+      setActiveStep(2)
+    } catch (err) {
+      setError(
+        /not found/i.test(err.message)
+          ? 'Invalid Application ID. Please check and try again.'
+          : err.message || 'Unable to verify right now. Please try again.'
+      )
+    } finally {
+      setLoading(false)
+    }
   }
 
   // Step 3 — upload the images under the captured Application ID,
