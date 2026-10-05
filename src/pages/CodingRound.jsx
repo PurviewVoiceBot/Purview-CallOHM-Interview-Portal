@@ -6,7 +6,7 @@ import {
   Maximize2, Minimize2, ShieldX, MonitorX, Sun, Moon,
   LogOut, PanelLeftClose, PanelLeftOpen,
 } from 'lucide-react'
-import { getCodingQuestions, getCompilerLanguages, runCode, submitCode, reportCodingViolation, collectCodingRound } from '../apis/apiService'
+import { getCodingQuestions, getCompilerLanguages, runCode, submitCode, reportCodingViolation, collectCodingRound,trackViolation } from '../apis/apiService'
 import CodeMirror from '@uiw/react-codemirror'
 import { vscodeDark, vscodeLight } from '@uiw/codemirror-theme-vscode'
 import { StreamLanguage } from '@codemirror/language'
@@ -114,7 +114,7 @@ function getLanguageExtension(langName) {
   return []   // Elixir, Basic, Executable, F#, Multi-file, Plain Text, Prolog - no highlight, no crash
 }
 
-const MAX_VIOLATIONS    = 3
+// const MAX_VIOLATIONS    = 3
 const CODING_TIME_LIMIT = 30 * 60  // 30 minutes in seconds
 const MONITORING_ENABLED = true   // enforce fullscreen + tab/window/second-screen violations
 
@@ -122,7 +122,9 @@ export default function CodingRound({ sessionData }) {
   const navigate          = useNavigate()
   const containerRef      = useRef(null)
   const toastTimerRef     = useRef(null)
-  const lastViolationRef  = useRef(0)
+  // const lastViolationRef  = useRef(0)
+  const lastViolationRef  = useRef({})   // per-type debounce
+  const awayRef           = useRef(false) // one violation per absence
   const autoSubmittedRef  = useRef(false)
 
   // ── Data ────────────────────────────────────────────────────────────────────
@@ -233,23 +235,73 @@ export default function CodingRound({ sessionData }) {
   // ── Hit violation endpoint when session is terminated by violations ───────────
   useEffect(() => {
     if (!terminated || !MONITORING_ENABLED) return
-    reportCodingViolation(sessionData?.applicationId).catch(() => {})
-  }, [terminated]) // eslint-disable-line react-hooks/exhaustive-deps
+    // reportCodingViolation(sessionData?.applicationId).catch(() => {})
+      reportCodingViolation(sessionData?.applicationId).catch((err) =>
+  console.error(
+    'Failed to report coding violation termination:',
+    err
+  )
+)
+}, [terminated]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Violation helper ─────────────────────────────────────────────────────────
+  // const raiseViolation = useCallback((type, msg) => {
+  //   const now = Date.now()
+  //   if (now - lastViolationRef.current < 1000) return
+  //   lastViolationRef.current = now
+  //   setViolations(prev => {
+  //     const next = prev + 1
+  //     if (next >= MAX_VIOLATIONS) setTerminated(true)
+  //     return next
+  //   })
+  //   if (toastTimerRef.current) clearTimeout(toastTimerRef.current)
+  //   setShowViolation({ msg })
+  //   toastTimerRef.current = setTimeout(() => setShowViolation(null), 5000)
+  // }, [])
   const raiseViolation = useCallback((type, msg) => {
-    const now = Date.now()
-    if (now - lastViolationRef.current < 1000) return
-    lastViolationRef.current = now
-    setViolations(prev => {
-      const next = prev + 1
-      if (next >= MAX_VIOLATIONS) setTerminated(true)
-      return next
+  const now = Date.now()
+
+  // if (now - lastViolationRef.current < 1000) return
+
+  // lastViolationRef.current = now
+  // Debounce per type so one event can't swallow a different one
+  if (now - (lastViolationRef.current[type] || 0) < 1000) return
+  lastViolationRef.current[type] = now
+
+  // Report every violation type to the backend
+  if (sessionData?.applicationId) {
+    trackViolation(
+      sessionData.applicationId,
+      'coding',
+      type
+    ).catch((err) => {
+      // Don't silently swallow this - if the request fails,
+      // the violation is only counted locally and never reaches the dashboard.
+      console.error('Failed to record violation on server:', err)
     })
-    if (toastTimerRef.current) clearTimeout(toastTimerRef.current)
-    setShowViolation({ msg })
-    toastTimerRef.current = setTimeout(() => setShowViolation(null), 5000)
-  }, [])
+  }
+
+  // setViolations(prev => {
+  //   const next = prev + 1
+
+  //   if (next >= MAX_VIOLATIONS) {
+  //     setTerminated(true)
+  //   }
+
+  //   return next
+  // })
+  setViolations(prev => prev + 1)
+  if (toastTimerRef.current) {
+    clearTimeout(toastTimerRef.current)
+  }
+
+  setShowViolation({ msg })
+
+  toastTimerRef.current = setTimeout(
+    () => setShowViolation(null),
+    5000
+  )
+}, [sessionData?.applicationId])
 
   // ── Fullscreen change ────────────────────────────────────────────────────────
   useEffect(() => {
@@ -268,34 +320,55 @@ export default function CodingRound({ sessionData }) {
   }, [monitoringActive, terminated, done, raiseViolation])
 
   // ── Tab visibility ───────────────────────────────────────────────────────────
+  // useEffect(() => {
+  //   const h = () => {
+  //     if (document.hidden && monitoringActive && !terminated && !done)
+  //       raiseViolation('tab_switch', 'You switched away from this tab. Return immediately - this is a violation.')
+  //   }
+  //   document.addEventListener('visibilitychange', h)
+  //   return () => document.removeEventListener('visibilitychange', h)
+  // }, [raiseViolation, monitoringActive, terminated, done])
+
+  // // ── Window focus loss ────────────────────────────────────────────────────────
+  // useEffect(() => {
+  //   const h = () => {
+  //     if (monitoringActive && !terminated && !done)
+  //       raiseViolation('focus_loss', 'You moved away from this window. Return immediately - this is a violation.')
+  //   }
+  //   window.addEventListener('blur', h)
+  //   return () => window.removeEventListener('blur', h)
+  // }, [raiseViolation, monitoringActive, terminated, done])
+
+  // useEffect(() => {
+  //   if (!monitoringActive || terminated || done) return
+  //   const id = setInterval(() => {
+  //     if (!document.hasFocus() && !terminated && !done)
+  //       raiseViolation('focus_loss', 'You moved away from this window. Return immediately - this is a violation.')
+  //   }, 1000)
+  //   return () => clearInterval(id)
+  // }, [raiseViolation, monitoringActive, terminated, done])
   useEffect(() => {
-    const h = () => {
-      if (document.hidden && monitoringActive && !terminated && !done)
-        raiseViolation('tab_switch', 'You switched away from this tab. Return immediately - this is a violation.')
+    const away = () => {
+      if (!monitoringActive || terminated || done || awayRef.current) return
+      awayRef.current = true
+      raiseViolation('tab_switch', 'You left the interview window. Return immediately - this is a violation.')
     }
-    document.addEventListener('visibilitychange', h)
-    return () => document.removeEventListener('visibilitychange', h)
-  }, [raiseViolation, monitoringActive, terminated, done])
+    const back = () => { awayRef.current = false }
 
-  // ── Window focus loss ────────────────────────────────────────────────────────
-  useEffect(() => {
-    const h = () => {
-      if (monitoringActive && !terminated && !done)
-        raiseViolation('focus_loss', 'You moved away from this window. Return immediately - this is a violation.')
+    const onVisibility = () => (document.hidden ? away() : back())
+    document.addEventListener('visibilitychange', onVisibility)
+    window.addEventListener('blur', away)
+    window.addEventListener('focus', back)
+    // Catches multi-monitor switches that don't always fire blur
+    const id = setInterval(() => (document.hasFocus() ? back() : away()), 1000)
+
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibility)
+      window.removeEventListener('blur', away)
+      window.removeEventListener('focus', back)
+      clearInterval(id)
     }
-    window.addEventListener('blur', h)
-    return () => window.removeEventListener('blur', h)
   }, [raiseViolation, monitoringActive, terminated, done])
-
-  useEffect(() => {
-    if (!monitoringActive || terminated || done) return
-    const id = setInterval(() => {
-      if (!document.hasFocus() && !terminated && !done)
-        raiseViolation('focus_loss', 'You moved away from this window. Return immediately - this is a violation.')
-    }, 1000)
-    return () => clearInterval(id)
-  }, [raiseViolation, monitoringActive, terminated, done])
-
   // ── DevTools detection ───────────────────────────────────────────────────────
   useEffect(() => {
     const devRef = { current: false }
@@ -736,8 +809,11 @@ export default function CodingRound({ sessionData }) {
             <div>
               <p className="text-sm font-semibold text-slate-800">Violation Detected</p>
               <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">{showViolation.msg}</p>
-              <p className="text-xs font-semibold text-orange-600 mt-1.5">
+              {/* <p className="text-xs font-semibold text-orange-600 mt-1.5">
                 {violations}/{MAX_VIOLATIONS} warnings - session ends at {MAX_VIOLATIONS}
+              </p> */}
+              <p className="text-xs font-semibold text-orange-600 mt-1.5">
+                 {violations} violation{violations !== 1 ? 's' : ''} recorded
               </p>
             </div>
           </div>

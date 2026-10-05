@@ -99,7 +99,25 @@ export async function getAgentSignedUrl() {
     }
   )
 
-  if (!res.ok) throw new Error('Failed to fetch agent signed URL')
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}))
+    const detail = body?.detail
+
+    if (typeof detail === 'object' && detail !== null) {
+      throw new Error(
+        detail?.message ||
+        detail?.status ||
+        `Failed to fetch agent signed URL (${res.status})`
+      )
+    }
+
+    throw new Error(
+      detail ||
+      body?.message ||
+      `Failed to fetch agent signed URL (${res.status})`
+    )
+  }
+
   return res.json()
 }
 
@@ -114,6 +132,31 @@ export async function startSession(applicationId) {
   return request(`${BACKEND_URL}/recruitment/agents/technical/session/start/${applicationId}`, {
     method: 'POST',
   })
+}
+/**
+ * Tracks a specific interview violation.
+ *
+ * POST /recruitment/agents/technical/violations/track
+ */
+export async function trackViolation(
+  applicationId,
+  round = 'technical',
+  violationType
+) {
+  return request(
+    `${BACKEND_URL}/recruitment/agents/technical/violations/track`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        application_id: applicationId,
+        round,
+        violation_type: violationType,
+      }),
+    }
+  )
 }
 
 /**
